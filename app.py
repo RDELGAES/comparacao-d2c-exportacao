@@ -1,1 +1,65 @@
-ECHO est� ativado.
+# -*- coding: utf-8 -*-
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+def calcular_custos_d2c(custo_envio_d2c, quantidade_pares):
+    return custo_envio_d2c * quantidade_pares
+
+def calcular_custos_exportacao(custo_envio_consolidado, quantidade_pares, valor_unitario, taxa_imposto,
+                                custo_envio_local, custo_armazenagem_mensal):
+    custo_total_envio_consolidado = custo_envio_consolidado * quantidade_pares
+    valor_total_produtos = valor_unitario * quantidade_pares
+    imposto_importacao = taxa_imposto * valor_total_produtos
+    custo_total_envio_local = custo_envio_local * quantidade_pares
+    custo_total_armazenagem = custo_armazenagem_mensal * quantidade_pares
+    
+    custo_total_exportacao = (custo_total_envio_consolidado + imposto_importacao +
+                              custo_total_envio_local + custo_total_armazenagem)
+    
+    return custo_total_exportacao
+
+def main():
+    st.set_page_config(page_title="Comparação de Modelos D2C vs. Exportação", layout="wide")
+    st.title("📦 Comparação de Modelos: D2C vs. Exportação Formal")
+    
+    st.sidebar.header("📊 Parâmetros")
+    quantidade_pares = st.sidebar.number_input("Quantidade de pares", min_value=1, value=400)
+    valor_unitario = st.sidebar.number_input("Valor unitário do produto (USD)", min_value=1.0, value=30.0)
+    taxa_imposto = st.sidebar.slider("Taxa de imposto de importação (%)", min_value=0.0, max_value=50.0, value=10.0) / 100
+    
+    custo_envio_d2c = st.sidebar.number_input("Custo de envio D2C (USD por par)", min_value=1.0, value=20.0)
+    custo_envio_consolidado = st.sidebar.number_input("Custo de envio consolidado (USD por par)", min_value=1.0, value=7.0)
+    custo_envio_local = st.sidebar.number_input("Custo de envio local nos EUA (USD por par)", min_value=1.0, value=10.0)
+    custo_armazenagem_mensal = st.sidebar.number_input("Custo de armazenagem (USD por par por mês)", min_value=0.01, value=0.45)
+    
+    if st.sidebar.button("📌 Calcular Comparação"):
+        custo_total_d2c = calcular_custos_d2c(custo_envio_d2c, quantidade_pares)
+        custo_total_exportacao = calcular_custos_exportacao(
+            custo_envio_consolidado, quantidade_pares, valor_unitario, taxa_imposto,
+            custo_envio_local, custo_armazenagem_mensal
+        )
+        
+        st.subheader("📊 Resultados")
+        col1, col2 = st.columns(2)
+        col1.metric(label="💰 Custo Total - D2C Crossborder", value=f"${custo_total_d2c:,.2f}")
+        col2.metric(label="📦 Custo Total - Exportação Formal", value=f"${custo_total_exportacao:,.2f}")
+        
+        if custo_total_d2c < custo_total_exportacao:
+            st.success("✅ O modelo D2C Crossborder é mais barato!")
+        else:
+            st.warning("⚠️ O modelo de Exportação Formal é mais barato!")
+        
+        # Criar gráfico comparativo
+        df = pd.DataFrame({
+            "Modelo": ["D2C Crossborder", "Exportação Formal"],
+            "Custo Total (USD)": [custo_total_d2c, custo_total_exportacao]
+        })
+        fig = px.bar(df, x="Modelo", y="Custo Total (USD)", text_auto=True, title="Comparação de Custos",
+                     color="Modelo", template="plotly_white")
+        st.plotly_chart(fig, use_container_width=True)
+
+if __name__ == "__main__":
+    main()
+
