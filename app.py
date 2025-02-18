@@ -9,12 +9,6 @@ import numpy as np
 from bs4 import BeautifulSoup
 import streamlit.components.v1 as components  # Import para componentes customizados
 
-# Declarar o componente customizado (não incluído na navegação atual)
-meu_componente = components.declare_component(
-    "meu_componente",
-    path="meu_componente/frontend/build"
-)
-
 st.set_page_config(page_title="Comparação de Modelos: D2C vs. Exportação", layout="wide")
 
 # Injeção de CSS customizado conforme design do Figma
