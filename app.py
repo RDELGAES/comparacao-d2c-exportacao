@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# -*- coding: utf-8 -*-
-
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -11,13 +9,12 @@ import numpy as np
 from bs4 import BeautifulSoup
 import streamlit.components.v1 as components  # Import para componentes customizados
 
-# Declarar o componente customizado (removido da navegação)
-# meu_componente = components.declare_component(
-#     "meu_componente",
-#     path="meu_componente/frontend/build"
-# )
+# Declarar o componente customizado (não incluído na navegação atual)
+meu_componente = components.declare_component(
+    "meu_componente",
+    path="meu_componente/frontend/build"
+)
 
-# Configuração da página (primeira instrução)
 st.set_page_config(page_title="Comparação de Modelos: D2C vs. Exportação", layout="wide")
 
 # Injeção de CSS customizado conforme design do Figma
@@ -86,7 +83,9 @@ for key, value in default_keys.items():
 # Carrega API Key do .env
 API_KEY = config("SHIPSMART_API_KEY")
 
-# ------------------------- FUNÇÕES AUXILIARES -------------------------
+# -------------------------
+# FUNÇÕES AUXILIARES
+# -------------------------
 def carregar_ncm():
     conn = sqlite3.connect("ncm_database.db")
     df = pd.read_sql_query("SELECT product_code, product_description FROM ncm", conn)
@@ -125,7 +124,6 @@ def buscar_hs_10_digitos(hs_code_6):
 def calcular_frete_d2c(altura, largura, profundidade, peso, preco, quantidade):
     url = "https://api.shipsmart.com.br/v2/quotation?level=simple"
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
-
     pacotes = [{
         "name": f"Pacote {i+1}",
         "height": altura,
@@ -134,7 +132,6 @@ def calcular_frete_d2c(altura, largura, profundidade, peso, preco, quantidade):
         "weight": peso,
         "price": preco
     } for i in range(quantidade)]
-
     payload = {
         "object": "not_doc",
         "type": "simple",
@@ -166,12 +163,10 @@ def calcular_caixa_master(item_altura, item_largura, item_profundidade, item_pes
     capacity = int(min(cap_by_volume, cap_by_weight))
     if capacity <= 0:
         capacity = 1
-
     num_boxes = int(np.ceil(item_quantidade / capacity))
     total_weight = item_quantidade * item_peso
     boxes = []
     remaining = item_quantidade
-
     for i in range(num_boxes):
         items_in_box = capacity if remaining >= capacity else remaining
         box_weight = items_in_box * item_peso
@@ -185,13 +180,11 @@ def calcular_caixa_master(item_altura, item_largura, item_profundidade, item_pes
             "price": box_price
         })
         remaining -= items_in_box
-
     return num_boxes, total_weight, capacity, boxes
 
 def calcular_frete_formal(boxes):
     url = "https://api.shipsmart.com.br/v2/quotation?level=simple"
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
-
     payload = {
         "object": "not_doc",
         "type": "simple",
@@ -216,7 +209,21 @@ def calcular_frete_formal(boxes):
 # PÁGINAS DO APP
 # ============================
 def page_dados():
-    st.title("Etapa 1: Inserir Dados")
+    st.title("Bem-vindo ao Comparador de Fretes: D2C vs. Exportação Formal")
+    st.markdown("""
+        **Objetivo:**  
+        Este app auxilia na comparação entre duas estratégias de envio para os Estados Unidos:
+        - **D2C (Direct-to-Consumer):** Envio direto para o consumidor.
+        - **Exportação Formal:** Envio consolidado, onde os itens são agrupados em caixas master e o custo inclui impostos, armazenagem e frete local.
+        
+        **Jornada do App:**  
+        1. **Inserir Dados:** Informe as características do produto e da caixa master, além dos custos adicionais.
+        2. **Calcular Frete D2C:** O app calcula o custo de envio direto por item.
+        3. **Calcular Frete Formal:** Com base na configuração da caixa e nos custos adicionais, calcula o custo de envio consolidado por item.
+        4. **Resultado Final:** Compare os custos por item e visualize a diferença com um gráfico de barras.
+    """)
+    st.markdown("---")
+
     with st.container():
         st.subheader("Classificação NCM")
         ncm_parcial = st.text_input("Digite pelo menos 4 dígitos do NCM", key="ncm_input")
@@ -294,13 +301,10 @@ def page_dados():
 
 def page_d2c():
     st.title("Etapa 2: Calcular Frete D2C")
-
     if not st.session_state.get("dados_salvos", False):
         st.error("Salve os dados na Etapa 1 primeiro.")
         return
-
     st.write("**Dados Utilizados:**", st.session_state.dados_inseridos)
-
     if st.button("Calcular Frete D2C"):
         dados = st.session_state.dados_inseridos
         nome, valor = calcular_frete_d2c(
@@ -317,20 +321,16 @@ def page_d2c():
             st.success("Frete D2C calculado com sucesso!")
         else:
             st.error("Erro ao calcular Frete D2C.")
-
     if "frete_d2c" in st.session_state:
         st.info(st.session_state.frete_d2c)
 
 def page_formal():
     st.title("Etapa 3: Calcular Frete Formal")
-
     if not st.session_state.get("dados_salvos", False):
         st.error("Salve os dados na Etapa 1 primeiro.")
         return
-
     st.write("**Dados Utilizados:**", st.session_state.dados_inseridos)
     dados = st.session_state.dados_inseridos
-
     if st.button("Calcular Caixa Master"):
         num_boxes, total_weight, capacity, boxes = calcular_caixa_master(
             dados["item_altura"],
@@ -348,13 +348,11 @@ def page_formal():
         st.session_state.num_boxes = num_boxes
         st.session_state.total_weight = total_weight
         st.session_state.capacity = capacity
-
         st.subheader("Configuração da Caixa Master")
         st.write(f"Caixas necessárias: **{num_boxes}**")
         st.write(f"Peso total dos itens: **{total_weight} kg**")
         st.write(f"Capacidade máxima por caixa: **{capacity} itens**")
         st.table(pd.DataFrame(boxes))
-
     if st.button("Calcular Frete Formal"):
         if "master_boxes" not in st.session_state:
             st.error("Primeiro calcule a configuração da Caixa Master.")
@@ -362,25 +360,18 @@ def page_formal():
             nome, valor = calcular_frete_formal(st.session_state.master_boxes)
             if nome:
                 st.session_state.frete_formal = f"Frete Formal consolidado: {nome} - ${valor:.2f}"
-                # Total de itens (soma dos itens em todas as caixas)
                 total_items = sum([box["price"] / dados["item_preco"] for box in st.session_state.master_boxes])
                 st.write("Total de itens nas caixas:", total_items)
-
                 custo_frete_por_item = valor / total_items
                 total_valor_itens = dados["item_preco"] * dados["item_quantidade"]
-
                 if total_valor_itens < 800:
                     imposto_por_item = 0
                 else:
                     imposto_por_item = dados["tax_rate"] * dados["item_preco"]
-
-                # Custo total considerando armazenagem e frete local
                 custo_armazenagem_total = dados["armazenagem"] * total_items
                 custo_frete_local_total = dados["frete_local"] * total_items
-
                 custo_total_formal = valor + (imposto_por_item * total_items) + custo_armazenagem_total + custo_frete_local_total
                 formal_cost_per_item = custo_total_formal / total_items
-
                 st.session_state.formal_cost_per_item = formal_cost_per_item
                 st.session_state.formal_breakdown = {
                     "Frete Formal Total": valor,
@@ -396,42 +387,31 @@ def page_formal():
                 st.success("Frete Formal calculado com sucesso!")
             else:
                 st.error("Erro ao calcular Frete Formal.")
-
     if "frete_formal" in st.session_state:
         st.info(st.session_state.frete_formal)
 
 def page_resultado():
     st.title("Etapa 4: Resultado Final")
-
     if "frete_d2c" not in st.session_state or "formal_cost_per_item" not in st.session_state:
         st.error("Calcule os fretes D2C e Formal nas etapas anteriores.")
         return
-
     d2c_valor_str = st.session_state.frete_d2c.split('$')[-1]
     try:
         d2c_valor = float(d2c_valor_str)
     except:
         d2c_valor = st.session_state.frete_d2c_value
-
     formal_valor = st.session_state.formal_cost_per_item
-
     st.write(f"**D2C - Custo por item:** ${d2c_valor:.2f}")
     st.write(f"**Formal - Custo por item:** ${formal_valor:.2f}")
-
-    # Calcular custo total para cada cenário (quantidade total de itens * custo por item)
     total_items = st.session_state.dados_inseridos["item_quantidade"]
     total_d2c = total_items * d2c_valor
     total_formal = total_items * formal_valor
-
-    # Cria um DataFrame para o gráfico de barras
     df_chart = pd.DataFrame({
         "Cenário": ["D2C", "Formal"],
         "Custo Total (USD)": [total_d2c, total_formal]
     })
-
     st.subheader("Comparação de Custo Total por Cenário")
     st.bar_chart(df_chart.set_index("Cenário"))
-
     st.subheader("Memória de Cálculo (Formal)")
     breakdown_data = [
         {"Item": "Frete Formal Total", "Valor (USD)": f"${st.session_state.formal_breakdown['Frete Formal Total']:.2f}"},
@@ -445,7 +425,6 @@ def page_resultado():
         {"Item": "Total Formal por Item", "Valor (USD)": f"${st.session_state.formal_breakdown['Total Formal por Item']:.2f}"}
     ]
     st.table(pd.DataFrame(breakdown_data))
-
 
 # ============================
 # NAVEGAÇÃO LATERAL
@@ -463,52 +442,3 @@ elif etapa == "3. Frete Formal":
     page_formal()
 elif etapa == "4. Resultado Final":
     page_resultado()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
