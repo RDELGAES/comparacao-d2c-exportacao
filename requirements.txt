@@ -1,3 +1,7 @@
 streamlit
 pandas
-plotly
+numpy
+requests
+python-decouple
+beautifulsoup4
+
