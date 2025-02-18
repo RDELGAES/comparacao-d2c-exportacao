@@ -7,11 +7,15 @@ import requests
 from decouple import config
 import numpy as np
 from bs4 import BeautifulSoup
-import streamlit.components.v1 as components  # Import para componentes customizados
+# Removemos a importação e declaração do componente customizado
+# import streamlit.components.v1 as components  
+# meu_componente = components.declare_component(
+#     "meu_componente",
+#     path="meu_componente/frontend/build"
+# )
 
 st.set_page_config(page_title="Comparação de Modelos: D2C vs. Exportação", layout="wide")
 
-# Injeção de CSS customizado conforme design do Figma
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
@@ -52,7 +56,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Inicializa valores padrão no session_state, se ainda não existirem
 default_keys = {
     "dados_salvos": False,
     "dados_inseridos": {},
@@ -66,20 +69,16 @@ default_keys = {
     "master_largura": 40,
     "master_profundidade": 40,
     "master_max_peso": 50.0,
-    "armazenagem": 0.50,   # custo de armazenagem por item
-    "frete_local": 5.00,    # custo de frete local por item
-    "tax_rate": 0.0         # taxa de imposto (em formato decimal)
+    "armazenagem": 0.50,
+    "frete_local": 5.00,
+    "tax_rate": 0.0
 }
 for key, value in default_keys.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-# Carrega API Key do .env
 API_KEY = config("SHIPSMART_API_KEY")
 
-# -------------------------
-# FUNÇÕES AUXILIARES
-# -------------------------
 def carregar_ncm():
     conn = sqlite3.connect("ncm_database.db")
     df = pd.read_sql_query("SELECT product_code, product_description FROM ncm", conn)
@@ -307,7 +306,7 @@ def page_d2c():
             dados["item_profundidade"],
             dados["item_peso"],
             dados["item_preco"],
-            1  # Envio individual
+            1
         )
         if nome:
             st.session_state.frete_d2c = f"Frete D2C por item: {nome} - ${valor:.2f}"
@@ -342,11 +341,13 @@ def page_formal():
         st.session_state.num_boxes = num_boxes
         st.session_state.total_weight = total_weight
         st.session_state.capacity = capacity
+
         st.subheader("Configuração da Caixa Master")
         st.write(f"Caixas necessárias: **{num_boxes}**")
         st.write(f"Peso total dos itens: **{total_weight} kg**")
         st.write(f"Capacidade máxima por caixa: **{capacity} itens**")
         st.table(pd.DataFrame(boxes))
+
     if st.button("Calcular Frete Formal"):
         if "master_boxes" not in st.session_state:
             st.error("Primeiro calcule a configuração da Caixa Master.")
