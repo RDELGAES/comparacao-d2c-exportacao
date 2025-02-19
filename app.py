@@ -7,15 +7,11 @@ import requests
 from decouple import config
 import numpy as np
 from bs4 import BeautifulSoup
-# Removemos a importação e declaração do componente customizado
-# import streamlit.components.v1 as components  
-# meu_componente = components.declare_component(
-#     "meu_componente",
-#     path="meu_componente/frontend/build"
-# )
 
+# Configuração da página
 st.set_page_config(page_title="Comparação de Modelos: D2C vs. Exportação", layout="wide")
 
+# Injeção de CSS customizado conforme design do Figma
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
@@ -56,7 +52,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Inicializa valores padrão no session_state
 default_keys = {
+    "page": "dados",           # Valores possíveis: "dados", "d2c", "formal", "resultado"
     "dados_salvos": False,
     "dados_inseridos": {},
     "item_altura": 10,
@@ -79,6 +77,9 @@ for key, value in default_keys.items():
 
 API_KEY = config("SHIPSMART_API_KEY")
 
+# -------------------------
+# FUNÇÕES AUXILIARES
+# -------------------------
 def carregar_ncm():
     conn = sqlite3.connect("ncm_database.db")
     df = pd.read_sql_query("SELECT product_code, product_description FROM ncm", conn)
@@ -210,13 +211,12 @@ def page_dados():
         - **Exportação Formal:** Envio consolidado, onde os itens são agrupados em caixas master e o custo inclui impostos, armazenagem e frete local.
         
         **Jornada do App:**  
-        1. **Inserir Dados:** Informe as características do produto e da caixa master, além dos custos adicionais.
-        2. **Calcular Frete D2C:** O app calcula o custo de envio direto por item.
-        3. **Calcular Frete Formal:** Com base na configuração da caixa e nos custos adicionais, calcula o custo de envio consolidado por item.
-        4. **Resultado Final:** Compare os custos por item e visualize a diferença com um gráfico de barras.
+        1. **Inserir Dados:** Informe as características do produto, caixa master e custos adicionais.
+        2. **Calcular Frete D2C:** Calcula o custo de envio direto por item.
+        3. **Calcular Frete Formal:** Calcula o custo consolidado por item.
+        4. **Resultado Final:** Compare os custos e visualize a diferença com um gráfico.
     """)
     st.markdown("---")
-
     with st.container():
         st.subheader("Classificação NCM")
         ncm_parcial = st.text_input("Digite pelo menos 4 dígitos do NCM", key="ncm_input")
@@ -236,7 +236,6 @@ def page_dados():
                     st.session_state.tax_rate = float(melhor_hs[2]) if melhor_hs[2] != "N/A" else 0.0
         else:
             st.warning("Digite pelo menos 4 dígitos do NCM para ver sugestões.")
-
     st.markdown("---")
     st.subheader("Dados do Item")
     col1, col2, col3 = st.columns(3)
@@ -252,7 +251,6 @@ def page_dados():
     with col5:
         st.number_input("Valor (USD)", min_value=1.0, value=50.0, format="%.2f", key="item_preco")
     st.number_input("Quantidade de itens", min_value=1, value=1, key="item_quantidade")
-
     st.markdown("---")
     st.subheader("Dados da Caixa Master")
     col6, col7, col8 = st.columns(3)
@@ -263,7 +261,6 @@ def page_dados():
     with col8:
         st.number_input("Profundidade (cm)", min_value=1, value=40, key="master_profundidade")
     st.number_input("Peso máximo suportado (kg)", min_value=1.0, value=50.0, format="%.2f", key="master_max_peso")
-
     st.markdown("---")
     st.subheader("Custos Adicionais para Frete Formal")
     col9, col10 = st.columns(2)
@@ -271,26 +268,28 @@ def page_dados():
         st.number_input("Custo de Armazenagem por item (USD)", min_value=0.0, value=0.50, format="%.2f", key="armazenagem")
     with col10:
         st.number_input("Custo de Frete Local por item (USD)", min_value=0.0, value=5.00, format="%.2f", key="frete_local")
-
-    if st.button("Salvar Dados e Avançar para D2C"):
-        st.session_state.dados_inseridos = {
-            "item_altura": st.session_state.item_altura,
-            "item_largura": st.session_state.item_largura,
-            "item_profundidade": st.session_state.item_profundidade,
-            "item_peso": st.session_state.item_peso,
-            "item_preco": st.session_state.item_preco,
-            "item_quantidade": st.session_state.item_quantidade,
-            "master_altura": st.session_state.master_altura,
-            "master_largura": st.session_state.master_largura,
-            "master_profundidade": st.session_state.master_profundidade,
-            "master_max_peso": st.session_state.master_max_peso,
-            "armazenagem": st.session_state.armazenagem,
-            "frete_local": st.session_state.frete_local,
-            "tax_rate": st.session_state.tax_rate
-        }
-        st.session_state.dados_salvos = True
-        st.success("Dados salvos com sucesso!")
-        st.write("Registro dos dados:", st.session_state.dados_inseridos)
+    if st.button("Salvar Dados e Avançar", key="btn_salvar"):
+        if len(st.session_state.get("ncm_input", "")) < 4:
+            st.error("Preencha o NCM com pelo menos 4 dígitos.")
+        else:
+            st.session_state.dados_inseridos = {
+                "item_altura": st.session_state.item_altura,
+                "item_largura": st.session_state.item_largura,
+                "item_profundidade": st.session_state.item_profundidade,
+                "item_peso": st.session_state.item_peso,
+                "item_preco": st.session_state.item_preco,
+                "item_quantidade": st.session_state.item_quantidade,
+                "master_altura": st.session_state.master_altura,
+                "master_largura": st.session_state.master_largura,
+                "master_profundidade": st.session_state.master_profundidade,
+                "master_max_peso": st.session_state.master_max_peso,
+                "armazenagem": st.session_state.armazenagem,
+                "frete_local": st.session_state.frete_local,
+                "tax_rate": st.session_state.tax_rate
+            }
+            st.session_state.dados_salvos = True
+            st.success("Dados salvos com sucesso!")
+            st.session_state.page = "d2c"
 
 def page_d2c():
     st.title("Etapa 2: Calcular Frete D2C")
@@ -298,7 +297,7 @@ def page_d2c():
         st.error("Salve os dados na Etapa 1 primeiro.")
         return
     st.write("**Dados Utilizados:**", st.session_state.dados_inseridos)
-    if st.button("Calcular Frete D2C"):
+    if st.button("Calcular Frete D2C", key="btn_calcular_d2c"):
         dados = st.session_state.dados_inseridos
         nome, valor = calcular_frete_d2c(
             dados["item_altura"],
@@ -324,7 +323,7 @@ def page_formal():
         return
     st.write("**Dados Utilizados:**", st.session_state.dados_inseridos)
     dados = st.session_state.dados_inseridos
-    if st.button("Calcular Caixa Master"):
+    if st.button("Calcular Caixa Master", key="btn_caixa_master"):
         num_boxes, total_weight, capacity, boxes = calcular_caixa_master(
             dados["item_altura"],
             dados["item_largura"],
@@ -341,14 +340,12 @@ def page_formal():
         st.session_state.num_boxes = num_boxes
         st.session_state.total_weight = total_weight
         st.session_state.capacity = capacity
-
         st.subheader("Configuração da Caixa Master")
         st.write(f"Caixas necessárias: **{num_boxes}**")
         st.write(f"Peso total dos itens: **{total_weight} kg**")
         st.write(f"Capacidade máxima por caixa: **{capacity} itens**")
         st.table(pd.DataFrame(boxes))
-
-    if st.button("Calcular Frete Formal"):
+    if st.button("Calcular Frete Formal", key="btn_calcular_formal"):
         if "master_boxes" not in st.session_state:
             st.error("Primeiro calcule a configuração da Caixa Master.")
         else:
@@ -422,18 +419,51 @@ def page_resultado():
     st.table(pd.DataFrame(breakdown_data))
 
 # ============================
-# NAVEGAÇÃO LATERAL
+# LAYOUT: Conteúdo principal (toda a tela, sem sidebar)
 # ============================
-etapa = st.sidebar.radio(
-    "Navegação",
-    ["1. Inserir Dados", "2. Frete D2C", "3. Frete Formal", "4. Resultado Final"]
-)
-
-if etapa == "1. Inserir Dados":
+if st.session_state.page == "dados":
     page_dados()
-elif etapa == "2. Frete D2C":
+elif st.session_state.page == "d2c":
     page_d2c()
-elif etapa == "3. Frete Formal":
+elif st.session_state.page == "formal":
     page_formal()
-elif etapa == "4. Resultado Final":
+elif st.session_state.page == "resultado":
     page_resultado()
+
+# ============================
+# Navegação inferior via botões com travas
+# ============================
+with st.container():
+    col_nav = st.columns(2)
+    # Botão Voltar
+    if st.session_state.page == "d2c":
+        if st.button("Voltar", key="back_d2c"):
+            st.session_state.page = "dados"
+    elif st.session_state.page == "formal":
+        if st.button("Voltar", key="back_formal"):
+            st.session_state.page = "d2c"
+    elif st.session_state.page == "resultado":
+        if st.button("Voltar", key="back_resultado"):
+            st.session_state.page = "formal"
+    
+    # Botão Próxima Etapa com trava
+    if st.session_state.page == "dados":
+        if st.button("Próxima Etapa", key="next_dados"):
+            if len(st.session_state.get("ncm_input", "")) < 4:
+                st.error("Você deve preencher o NCM com pelo menos 4 dígitos antes de prosseguir.")
+            else:
+                st.session_state.page = "d2c"
+    elif st.session_state.page == "d2c":
+        if st.button("Próxima Etapa", key="next_d2c"):
+            if "frete_d2c" not in st.session_state:
+                st.error("Você deve calcular o frete D2C antes de prosseguir.")
+            else:
+                st.session_state.page = "formal"
+    elif st.session_state.page == "formal":
+        if st.button("Próxima Etapa", key="next_formal"):
+            if ("master_boxes" not in st.session_state) or ("frete_formal" not in st.session_state):
+                st.error("Você deve calcular a configuração da Caixa Master e o frete formal antes de prosseguir.")
+            else:
+                st.session_state.page = "resultado"
+
+
