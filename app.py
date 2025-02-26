@@ -177,6 +177,7 @@ def calcular_caixa_master(item_altura, item_largura, item_profundidade, item_pes
     return num_boxes, total_weight, capacity, boxes
 
 def calcular_frete_formal(boxes):
+    # Se a opção manual foi escolhida, o cálculo automático não será utilizado.
     url = "https://api.shipsmart.com.br/v2/quotation?level=simple"
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
     payload = {
@@ -323,6 +324,13 @@ def page_formal():
         return
     st.write("**Dados Utilizados:**", st.session_state.dados_inseridos)
     dados = st.session_state.dados_inseridos
+
+    # Escolha de cotação: automática ou manual
+    opcao_frete = st.radio("Escolha a forma de cotação do Frete Formal:", 
+                           options=["Automático", "Manual"], key="opcao_frete_formal")
+    if opcao_frete == "Manual":
+        manual_frete = st.number_input("Digite o valor do embarque (USD)", min_value=0.0, value=0.0, key="frete_formal_manual")
+
     if st.button("Calcular Caixa Master", key="btn_caixa_master"):
         num_boxes, total_weight, capacity, boxes = calcular_caixa_master(
             dados["item_altura"],
@@ -349,7 +357,16 @@ def page_formal():
         if "master_boxes" not in st.session_state:
             st.error("Primeiro calcule a configuração da Caixa Master.")
         else:
-            nome, valor = calcular_frete_formal(st.session_state.master_boxes)
+            if opcao_frete == "Automático":
+                nome, valor = calcular_frete_formal(st.session_state.master_boxes)
+            else:
+                # Se manual, verifica se o valor inserido é maior que zero
+                if st.session_state.get("frete_formal_manual", 0) > 0:
+                    nome = "Manual"
+                    valor = st.session_state.frete_formal_manual
+                else:
+                    st.error("Insira um valor manual válido para o frete formal.")
+                    return
             if nome:
                 st.session_state.frete_formal = f"Frete Formal consolidado: {nome} - ${valor:.2f}"
                 total_items = sum([box["price"] / dados["item_preco"] for box in st.session_state.master_boxes])
@@ -465,5 +482,3 @@ with st.container():
                 st.error("Você deve calcular a configuração da Caixa Master e o frete formal antes de prosseguir.")
             else:
                 st.session_state.page = "resultado"
-
-
